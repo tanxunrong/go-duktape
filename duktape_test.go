@@ -20,7 +20,7 @@ func TestPushNumber(t *testing.T) {
 
 	i := 2123
 	c.PushInt(i)
-	if f,err := c.GetNumber(-1);err != nil {
+	if f, err := c.GetNumber(-1); err != nil {
 		t.Error(err)
 	} else if int(f) != i {
 		t.Fatal("get != push")
@@ -28,10 +28,14 @@ func TestPushNumber(t *testing.T) {
 
 	pi := 3.14159265369
 	c.PushDouble(pi)
-	if pr,err := c.GetNumber(-1); err != nil {
+	if pr, err := c.GetNumber(-1); err != nil {
 		t.Error(err)
 	} else if pr != pi {
 		t.Fatal("get float != push")
+	}
+
+	if count := c.GetTop(); count != 2 {
+		t.Fatalf("stack values should be 2 instead of %v", c)
 	}
 
 	c.Close()
@@ -41,7 +45,7 @@ func TestStr(t *testing.T) {
 	c := NewCtx()
 	s := "go\U00010000go\U00013000go\u27f0"
 	c.PushStr(s)
-	if sr,err := c.GetStr(-1) ; err != nil {
+	if sr, err := c.GetStr(-1); err != nil {
 		t.Error(err)
 	} else if sr != s {
 		t.Fatal("get str != push")
@@ -52,16 +56,50 @@ func TestStr(t *testing.T) {
 func TestBool(t *testing.T) {
 	c := NewCtx()
 	c.PushBool(true)
-	if ok,err := c.GetBool(-1) ; err != nil {
+	if ok, err := c.GetBool(-1); err != nil {
 		t.Error(err)
 	} else if !ok {
 		t.Fatal("get false when push true")
 	}
 	c.PushBool(false)
-	if ok,err := c.GetBool(-1) ; err != nil {
+	if ok, err := c.GetBool(-1); err != nil {
 		t.Error(err)
 	} else if ok {
 		t.Fatal("get true when push false")
 	}
+	c.Close()
+}
+
+/*
+func TestFatalCallback(t *testing.T) {
+	c := NewCtx()
+	c.fatal(DUK_ERR_ERROR, "fatal error for callback test")
+	if len(c.hell) < 1 {
+		t.Fatal("expect fatal error")
+	}
+	e := <-c.hell
+	t.Logf("the fatal: %v", e)
+	c.Close()
+}
+*/
+
+func TestEval(t *testing.T) {
+	c := NewCtx()
+	c.Eval("\"toup\".toUpperCase()")
+	if ret, err := c.GetStr(-1); err != nil {
+		t.Error(err)
+	} else if ret != "TOUP" {
+		t.Fatal("unexpected result")
+	}
+
+	/*
+	c.Eval("\"abcd\".length")
+	if ret, err := c.GetStr(-1); err != nil {
+		t.Error(err)
+	} else if ret != "4" {
+		t.Fatal("unexpected result")
+	}
+	*/
+
 	c.Close()
 }
