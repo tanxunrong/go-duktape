@@ -7,6 +7,7 @@ import "C"
 
 import (
 	"fmt"
+	"errors"
 	"unsafe"
 	"sync"
 )
@@ -143,12 +144,7 @@ const (
 	 DUK_TYPE_POINTER     DukType =    8    /* raw void pointer */
 )
 
-type Value interface {
-	Jspush(ctx *Context)
-}
-
-type Int int
-type String string
+var TypeError = errors.New("unexpected type")
 
 func (c *Context) PushInt(i int) {
 	C.duk_push_number(unsafe.Pointer(c.ctx),C.duk_double_t(float64(i)))
@@ -172,13 +168,40 @@ func (c *Context) PushBool(b bool) {
 	}
 }
 
-func (c *Context) GetNumber(i int) float64 {
+func (c *Context) GetNumber(i int) (float64,error) {
+	b := C.duk_is_number(unsafe.Pointer(c.ctx),C.duk_idx_t(i))
+	if b == 0 {
+		return 0,TypeError
+	}
 	num := C.duk_get_number(unsafe.Pointer(c.ctx),C.duk_idx_t(i))
-	return float64(num)
+	return float64(num),nil
 }
 
-func (c *Context) GetStr(i int) string {
+func (c *Context) GetBool(i int) (bool,error) {
+	b := C.duk_is_boolean(unsafe.Pointer(c.ctx),C.duk_idx_t(i))
+	if b == 0 {
+		return false,TypeError
+	}
+	ret := C.duk_get_boolean(unsafe.Pointer(c.ctx),C.duk_idx_t(i))
+	if ret > 0 {
+		return true,nil
+	} else {
+		return false,nil
+	}
+}
+
+func (c *Context) GetStr(i int) (string,error) {
+	b := C.duk_is_string(unsafe.Pointer(c.ctx),C.duk_idx_t(i))
+	if b == 0 {
+		return "",TypeError
+	}
 	var l C.int
 	s := C.duk_get_lstring(unsafe.Pointer(c.ctx),C.duk_idx_t(i),(*C.duk_size_t)(unsafe.Pointer(&l)))
-	return C.GoStringN(s,l)
+	return C.GoStringN(s,l),nil
 }
+
+// return current number of values on stack
+func (c *Context) GetTop() int {
+	return int(c.duk_get_top(c.ctx))
+}
+
