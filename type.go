@@ -1,7 +1,7 @@
 package duktape
 
 // #cgo CFLAGS: -std=c99 -I./
-// #include "go-duktape.h"
+// #include "duktape.h"
 import "C"
 
 

@@ -91,11 +91,11 @@ func TestEval(t *testing.T) {
 	} else if ret != "TOUP" {
 		t.Fatal("unexpected result")
 	}
-
+	t.Log(c.dump())
 	/*
 	c.Eval("\"abcd\".length")
 	if ret, err := c.GetStr(-1); err != nil {
-		t.Error(err)
+		t.Errorf()
 	} else if ret != "4" {
 		t.Fatal("unexpected result")
 	}

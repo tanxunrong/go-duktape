@@ -1,8 +1,13 @@
 package duktape
 
-// #cgo CFLAGS: -std=c99 -I./
-// #cgo LDFLAGS: libduktape.a -lm
-// #include "go-duktape.h"
+/* 
+#cgo CFLAGS: -std=c99 -I./
+#cgo LDFLAGS: libduktape.a -lm
+#include "duktape.h"
+
+void go_duktape_fatal_cgo(duk_context *, duk_errcode_t, const char*);
+
+*/
 import "C"
 
 import (
@@ -13,13 +18,13 @@ import (
 
 // the duk_context holder.
 type Context struct {
-	ctx   *C.duk_context
+	ctx   unsafe.Pointer
 	mutex sync.Mutex
 	hell  chan DukError // fatal error chan
 	dead bool
 }
 
-type CtxCenter map[*C.duk_context]Context
+type CtxCenter map[unsafe.Pointer]Context
 
 var allContext = make(CtxCenter, 32)
 
@@ -27,20 +32,21 @@ var allContext = make(CtxCenter, 32)
 func go_duktape_fatal(ctx *C.duk_context, code C.duk_errcode_t, msg *C.char) {
 	m := C.GoString(msg)
 	d := DukError{code: code, msg: m}
-	if c, ok := allContext[ctx]; ok {
+	if c, ok := allContext[unsafe.Pointer(ctx)]; ok {
 		c.hell <- d
 		c.dead = true
 	}
 }
 
-var GoFatalCall = go_duktape_fatal
+var fatal C.duk_fatal_function
+
+func init() {
+	fatal = (C.duk_fatal_function)(unsafe.Pointer(C.go_duktape_fatal_cgo))
+}
 
 // create a new duktape context.
 func NewCtx() Context {
-	var ctx *C.duk_context
-	var fatal C.duk_fatal_function
-	fatal = (C.duk_fatal_function)(unsafe.Pointer(&GoFatalCall))
-	ctx = (*C.duk_context)(C.duk_create_heap(nil, nil, nil, nil, fatal))
+	ctx := C.duk_create_heap(nil, nil, nil, nil, fatal)
 	c := Context{ctx: ctx, hell: make(chan DukError, 5),dead:false}
 	allContext[ctx] = c
 	return c
@@ -50,7 +56,7 @@ func (c *Context) Close() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	delete(allContext, c.ctx)
-	C.duk_destroy_heap(unsafe.Pointer(c.ctx))
+	C.duk_destroy_heap(c.ctx)
 	c.ctx = nil
 }
 
@@ -73,47 +79,47 @@ var TypeError = errors.New("unexpected type")
 
 func (c *Context) PushInt(i int) {
 	c.check()
-	C.duk_push_number(unsafe.Pointer(c.ctx), C.duk_double_t(float64(i)))
+	C.duk_push_number(c.ctx, C.duk_double_t(float64(i)))
 }
 
 func (c *Context) PushDouble(f float64) {
 	c.check()
-	C.duk_push_number(unsafe.Pointer(c.ctx), C.duk_double_t(f))
+	C.duk_push_number(c.ctx, C.duk_double_t(f))
 }
 
 func (c *Context) PushStr(s string) {
 	c.check()
 	str := C.CString(s)
 	l := C.duk_size_t(len(s))
-	C.duk_push_lstring(unsafe.Pointer(c.ctx), str, l)
+	C.duk_push_lstring(c.ctx, str, l)
 }
 
 func (c *Context) PushBool(b bool) {
 	c.check()
 	if b {
-		C.duk_push_true(unsafe.Pointer(c.ctx))
+		C.duk_push_true(c.ctx)
 	} else {
-		C.duk_push_false(unsafe.Pointer(c.ctx))
+		C.duk_push_false(c.ctx)
 	}
 }
 
 func (c *Context) GetNumber(i int) (float64, error) {
 	c.check()
-	b := C.duk_is_number(unsafe.Pointer(c.ctx), C.duk_idx_t(i))
+	b := C.duk_is_number(c.ctx, C.duk_idx_t(i))
 	if b == 0 {
 		return 0, TypeError
 	}
-	num := C.duk_get_number(unsafe.Pointer(c.ctx), C.duk_idx_t(i))
+	num := C.duk_get_number(c.ctx, C.duk_idx_t(i))
 	return float64(num), nil
 }
 
 func (c *Context) GetBool(i int) (bool, error) {
 	c.check()
-	b := C.duk_is_boolean(unsafe.Pointer(c.ctx), C.duk_idx_t(i))
+	b := C.duk_is_boolean(c.ctx, C.duk_idx_t(i))
 	if b == 0 {
 		return false, TypeError
 	}
-	ret := C.duk_get_boolean(unsafe.Pointer(c.ctx), C.duk_idx_t(i))
+	ret := C.duk_get_boolean(c.ctx, C.duk_idx_t(i))
 	if ret > 0 {
 		return true, nil
 	} else {
@@ -123,19 +129,19 @@ func (c *Context) GetBool(i int) (bool, error) {
 
 func (c *Context) GetStr(i int) (string, error) {
 	c.check()
-	b := C.duk_is_string(unsafe.Pointer(c.ctx), C.duk_idx_t(i))
+	b := C.duk_is_string(c.ctx, C.duk_idx_t(i))
 	if b == 0 {
 		return "", TypeError
 	}
 	var l C.int
-	s := C.duk_get_lstring(unsafe.Pointer(c.ctx), C.duk_idx_t(i), (*C.duk_size_t)(unsafe.Pointer(&l)))
+	s := C.duk_get_lstring(c.ctx, C.duk_idx_t(i), (*C.duk_size_t)(unsafe.Pointer(&l)))
 	return C.GoStringN(s, l), nil
 }
 
 // return current number of values on stack
 func (c *Context) GetTop() int {
 	c.check()
-	return int(C.duk_get_top(unsafe.Pointer(c.ctx)))
+	return int(C.duk_get_top(c.ctx))
 }
 
 func (c *Context) Eval(s string) {
@@ -143,14 +149,14 @@ func (c *Context) Eval(s string) {
 	str := C.CString(s)
 	l := len(s)
 	c.PushStr("<eval>")
-	C.duk_eval_raw(unsafe.Pointer(c.ctx), str, (C.duk_size_t)(l),(DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_SAFE) )
+	C.duk_eval_raw(c.ctx, str, (C.duk_size_t)(l),(DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_SAFE) )
 	C.free(unsafe.Pointer(str))
 }
 
 func (c *Context) fatal(code C.duk_errcode_t, msg string) {
 	c.check()
 	str := C.CString(msg)
-	C.duk_fatal(unsafe.Pointer(c.ctx), code, str)
+	C.duk_fatal(c.ctx, code, str)
 	C.free(unsafe.Pointer(str))
 }
 
@@ -162,4 +168,12 @@ func (c *Context) check() {
 		}
 		panic("context is dead")
 	}
+}
+
+func (c *Context) dump() string {
+	C.duk_push_context_dump(c.ctx)
+	var l C.duk_size_t
+	s := C.duk_safe_to_lstring(c.ctx,-1,&l)
+	str := C.GoStringN(s,C.int(l))
+	return str
 }
