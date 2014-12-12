@@ -144,9 +144,41 @@ const (
 )
 
 type Value interface {
-	JsvalType() DukType
+	Jspush(ctx *Context)
 }
 
-func (ctx *Context) Push(i interface{}) {
+type Int int
+type String string
 
+func (c *Context) PushInt(i int) {
+	C.duk_push_number(unsafe.Pointer(c.ctx),C.duk_double_t(float64(i)))
+}
+
+func (c *Context) PushDouble(f float64) {
+	C.duk_push_number(unsafe.Pointer(c.ctx),C.duk_double_t(f))
+}
+
+func (c *Context) PushStr(s string) {
+	str := C.CString(s)
+	l := C.duk_size_t(len(s))
+	C.duk_push_lstring(unsafe.Pointer(c.ctx),str,l)
+}
+
+func (c *Context) PushBool(b bool) {
+	if b {
+		C.duk_push_true(unsafe.Pointer(c.ctx))
+	} else {
+		C.duk_push_false(unsafe.Pointer(c.ctx))
+	}
+}
+
+func (c *Context) GetNumber(i int) float64 {
+	num := C.duk_get_number(unsafe.Pointer(c.ctx),C.duk_idx_t(i))
+	return float64(num)
+}
+
+func (c *Context) GetStr(i int) string {
+	var l C.int
+	s := C.duk_get_lstring(unsafe.Pointer(c.ctx),C.duk_idx_t(i),(*C.duk_size_t)(unsafe.Pointer(&l)))
+	return C.GoStringN(s,l)
 }
