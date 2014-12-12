@@ -9,4 +9,8 @@ func TestOpenAndClose(t *testing.T) {
 	if c.ctx == nil {
 		t.Fatal("ctx nil")
 	}
+	c.Close()
+	if c.ctx != nil {
+		t.Fatal("ctx close fail")
+	}
 }

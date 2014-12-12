@@ -120,3 +120,33 @@ func NewCtx() Context {
 	ctx = (*C.duk_context)(C.duk_create_heap(nil,nil,nil,nil,fatal))
 	return Context{ctx: ctx}
 }
+
+func (c *Context) Close() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	C.duk_destroy_heap(unsafe.Pointer(c.ctx))
+	c.ctx = nil
+}
+
+type DukType int
+
+/* Value types, used by e.g. duk_get_type() */
+const (
+	 DUK_TYPE_NONE        DukType =    0    /* no value, e.g. invalid index */
+	 DUK_TYPE_UNDEFINED   DukType =    1    /* Ecmascript undefined */
+	 DUK_TYPE_NULL        DukType =    2    /* Ecmascript null */
+	 DUK_TYPE_BOOLEAN     DukType =    3    /* Ecmascript boolean: 0 or 1 */
+	 DUK_TYPE_NUMBER      DukType =    4    /* Ecmascript number: double */
+	 DUK_TYPE_STRING      DukType =    5    /* Ecmascript string: CESU-8 / extended UTF-8 encoded */
+	 DUK_TYPE_OBJECT      DukType =    6    /* Ecmascript object: includes objects, arrays, functions, threads */
+	 DUK_TYPE_BUFFER      DukType =    7    /* fixed or dynamic, garbage collected byte buffer */
+	 DUK_TYPE_POINTER     DukType =    8    /* raw void pointer */
+)
+
+type Value interface {
+	JsvalType() DukType
+}
+
+func (ctx *Context) Push(i interface{}) {
+
+}
