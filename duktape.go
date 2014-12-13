@@ -46,7 +46,13 @@ func init() {
 
 // create a new duktape context.
 func NewCtx() Context {
+	if fatal == nil {
+		panic("fatal func pointer = nil")
+	}
 	ctx := C.duk_create_heap(nil, nil, nil, nil, fatal)
+	if ctx == nil {
+		panic("new ctx = nil")
+	}
 	c := Context{ctx: ctx, hell: make(chan DukError, 5),dead:false}
 	allContext[ctx] = c
 	return c
@@ -55,9 +61,13 @@ func NewCtx() Context {
 func (c *Context) Close() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	if c.ctx == nil {
+		panic("new ctx = nil")
+	}
 	delete(allContext, c.ctx)
 	C.duk_destroy_heap(c.ctx)
 	c.ctx = nil
+	c.dead = true
 }
 
 type DukType int
@@ -161,7 +171,7 @@ func (c *Context) fatal(code C.duk_errcode_t, msg string) {
 }
 
 func (c *Context) check() {
-	if c.dead {
+	if c.ctx == nil || c.dead {
 		if len(c.hell) > 0 {
 			e := <-c.hell
 			panic(e)
