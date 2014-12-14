@@ -13,6 +13,7 @@ import "C"
 import (
 	"errors"
 	"sync"
+	"fmt"
 	"unsafe"
 )
 
@@ -145,6 +146,8 @@ func (c *Context) GetStr(i int) (string, error) {
 	}
 	var l C.int
 	s := C.duk_get_lstring(c.ctx, C.duk_idx_t(i), (*C.duk_size_t)(unsafe.Pointer(&l)))
+	//TODO unknown error cause panic without this line
+	_ = fmt.Sprintf("%v",s)
 	return C.GoStringN(s, l), nil
 }
 
@@ -163,6 +166,7 @@ func (c *Context) Eval(s string) {
 	C.free(unsafe.Pointer(str))
 }
 
+// fatal call shall not return
 func (c *Context) fatal(code C.duk_errcode_t, msg string) {
 	c.check()
 	str := C.CString(msg)

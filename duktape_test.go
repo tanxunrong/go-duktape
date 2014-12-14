@@ -83,7 +83,7 @@ func TestFatalCallback(t *testing.T) {
 }
 */
 
-func TestEval(t *testing.T) {
+func TestEvalAndDump(t *testing.T) {
 	c := NewCtx()
 	c.Eval("\"toup\".toUpperCase()")
 	if ret, err := c.GetStr(-1); err != nil {
@@ -91,6 +91,12 @@ func TestEval(t *testing.T) {
 	} else if ret != "TOUP" {
 		t.Fatal("unexpected result")
 	}
+
+	if c.dump() != "ctx: top=1, stack=[\"TOUP\"]" {
+		t.Fatal("unexpected dump")
+	}
+	c.Close()
+
 	/*
 	c.Eval("\"abcd\".length")
 	if ret, err := c.GetStr(-1); err != nil {
@@ -100,5 +106,4 @@ func TestEval(t *testing.T) {
 	}
 	*/
 
-	c.Close()
 }
