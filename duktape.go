@@ -14,6 +14,7 @@ import (
 	"errors"
 	"sync"
 	"fmt"
+	"io/ioutil"
 	"unsafe"
 )
 
@@ -56,6 +57,11 @@ func NewCtx() Context {
 	}
 	c := Context{ctx: ctx, hell: make(chan DukError, 5),dead:false}
 	allContext[ctx] = c
+	load,err := ioutil.ReadFile("./load.js")
+	if err != nil {
+		panic(err)
+	}
+	c.load(string(load))
 	return c
 }
 
@@ -166,6 +172,16 @@ func (c *Context) GetTop() int {
 	return int(C.duk_get_top(c.ctx))
 }
 
+// load string with <load> filename
+func (c *Context) load(s string) {
+	c.check()
+	str := C.CString(s)
+	l := len(s)
+	c.PushStr("<load>")
+	C.duk_eval_raw(c.ctx, str, (C.duk_size_t)(l),(DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_NORESULT | DUK_COMPILE_SAFE) )
+	C.free(unsafe.Pointer(str))
+}
+
 // eval string with <eval> filename
 func (c *Context) Eval(s string) {
 	c.check()
@@ -241,7 +257,18 @@ func (c *Context) Push(i interface{}) {
 	}
 }
 
-// fatal call shall not return
+// pop values from stack, i >= 0.
+func (c *Context) PopN(i int) {
+	if i == 0 {
+		return
+	}
+	if i < 0 {
+		panic("invalid i < 0")
+	}
+	C.duk_pop_n(c.ctx,C.duk_idx_t(i))
+}
+
+// fatal call shall not return.Don't use it.
 func (c *Context) fatal(code C.duk_errcode_t, msg string) {
 	c.check()
 	str := C.CString(msg)

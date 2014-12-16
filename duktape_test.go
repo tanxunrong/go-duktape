@@ -110,15 +110,16 @@ func TestEvalAndDump(t *testing.T) {
 	if c.Dump() != "ctx: top=1, stack=[\"TOUP\"]" {
 		t.Fatal("unexpected dump")
 	}
-	c.Close()
+	c.PopN(1)
 
-	/*
 	c.Eval("\"abcd\".length")
-	if ret, err := c.GetStr(-1); err != nil {
-		t.Errorf()
-	} else if ret != "4" {
+	if ret, err := c.GetNumber(-1); err != nil {
+		t.Error(err)
+	} else if ret != float64(4) {
 		t.Fatal("unexpected result")
 	}
-	*/
+	c.PopN(1)
+
+	c.Close()
 
 }
