@@ -88,16 +88,19 @@ const (
 
 var TypeError = errors.New("unexpected type")
 
+// Push int value
 func (c *Context) PushInt(i int) {
 	c.check()
 	C.duk_push_number(c.ctx, C.duk_double_t(float64(i)))
 }
 
+// Push float64 value
 func (c *Context) PushDouble(f float64) {
 	c.check()
 	C.duk_push_number(c.ctx, C.duk_double_t(f))
 }
 
+// Push string value
 func (c *Context) PushStr(s string) {
 	c.check()
 	str := C.CString(s)
@@ -105,6 +108,7 @@ func (c *Context) PushStr(s string) {
 	C.duk_push_lstring(c.ctx, str, l)
 }
 
+// Push bool value
 func (c *Context) PushBool(b bool) {
 	c.check()
 	if b {
@@ -114,6 +118,9 @@ func (c *Context) PushBool(b bool) {
 	}
 }
 
+// Get float64 value from stack index i.
+// i can be -1,-2,... or n,n-1,...,1 from top to bottom.
+// n == c.GetTop()
 func (c *Context) GetNumber(i int) (float64, error) {
 	c.check()
 	b := C.duk_is_number(c.ctx, C.duk_idx_t(i))
@@ -124,6 +131,7 @@ func (c *Context) GetNumber(i int) (float64, error) {
 	return float64(num), nil
 }
 
+// Get bool value
 func (c *Context) GetBool(i int) (bool, error) {
 	c.check()
 	b := C.duk_is_boolean(c.ctx, C.duk_idx_t(i))
@@ -138,6 +146,7 @@ func (c *Context) GetBool(i int) (bool, error) {
 	}
 }
 
+// Get string
 func (c *Context) GetStr(i int) (string, error) {
 	c.check()
 	b := C.duk_is_string(c.ctx, C.duk_idx_t(i))
@@ -157,6 +166,7 @@ func (c *Context) GetTop() int {
 	return int(C.duk_get_top(c.ctx))
 }
 
+// eval string with <eval> filename
 func (c *Context) Eval(s string) {
 	c.check()
 	str := C.CString(s)
@@ -164,6 +174,71 @@ func (c *Context) Eval(s string) {
 	c.PushStr("<eval>")
 	C.duk_eval_raw(c.ctx, str, (C.duk_size_t)(l),(DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_SAFE) )
 	C.free(unsafe.Pointer(str))
+}
+
+// Push values onto the stack.can be number,string or bool.
+func (c *Context) Push(i interface{}) {
+	switch i.(type) {
+	case uint8:
+		f := float64(i.(uint8))
+		c.PushDouble(f)
+		break
+	case uint16:
+		f := float64(i.(uint16))
+		c.PushDouble(f)
+		break
+	case uint32:
+		f := float64(i.(uint32))
+		c.PushDouble(f)
+		break
+	case uint64:
+		f := float64(i.(uint64))
+		c.PushDouble(f)
+		break
+	case uint:
+		f := float64(i.(uint))
+		c.PushDouble(f)
+		break
+	case int8:
+		f := float64(i.(int8))
+		c.PushDouble(f)
+		break
+	case int16:
+		f := float64(i.(int16))
+		c.PushDouble(f)
+		break
+	case int32:
+		f := float64(i.(int32))
+		c.PushDouble(f)
+		break
+	case int64:
+		f := float64(i.(int64))
+		c.PushDouble(f)
+		break
+	case int:
+		f := float64(i.(int))
+		c.PushDouble(f)
+		break
+	case float32:
+		f := float64(i.(float32))
+		c.PushDouble(f)
+		break
+	case float64:
+		f := i.(float64)
+		c.PushDouble(f)
+		break
+	case string:
+		s := i.(string)
+		c.PushStr(s)
+		break
+	case bool:
+		b := i.(bool)
+		c.PushBool(b)
+		break
+	default:
+		panic("push failed,invaid type")
+		break
+	}
 }
 
 // fatal call shall not return
@@ -174,6 +249,7 @@ func (c *Context) fatal(code C.duk_errcode_t, msg string) {
 	C.free(unsafe.Pointer(str))
 }
 
+// check if context is dead
 func (c *Context) check() {
 	if c.ctx == nil || c.dead {
 		if len(c.hell) > 0 {
@@ -184,7 +260,8 @@ func (c *Context) check() {
 	}
 }
 
-func (c *Context) dump() string {
+// dump the stack content
+func (c *Context) Dump() string {
 	C.duk_push_context_dump(c.ctx)
 	var l C.duk_size_t
 	s := C.duk_safe_to_lstring(c.ctx,-1,&l)

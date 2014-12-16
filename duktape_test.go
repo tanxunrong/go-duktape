@@ -38,6 +38,21 @@ func TestPushNumber(t *testing.T) {
 		t.Fatalf("stack values should be 2 instead of %v", c)
 	}
 
+	var u1 uint16 = 324
+	var i1 int64 = 2392931293
+	c.Push(u1)
+	if pr, err := c.GetNumber(-1); err != nil {
+		t.Error(err)
+	} else if pr != float64(u1) {
+		t.Fatal("get float != push")
+	}
+	c.Push(i1)
+	if pr, err := c.GetNumber(-1); err != nil {
+		t.Error(err)
+	} else if pr != float64(i1) {
+		t.Fatal("get float != push")
+	}
+
 	c.Close()
 }
 
@@ -92,7 +107,7 @@ func TestEvalAndDump(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	if c.dump() != "ctx: top=1, stack=[\"TOUP\"]" {
+	if c.Dump() != "ctx: top=1, stack=[\"TOUP\"]" {
 		t.Fatal("unexpected dump")
 	}
 	c.Close()
