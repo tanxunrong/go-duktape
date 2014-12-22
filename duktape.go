@@ -114,6 +114,18 @@ func (c *Context) PushStr(s string) {
 	C.duk_push_lstring(c.ctx, str, l)
 }
 
+// Push null value
+func (c *Context) PushNull() {
+	c.check()
+	C.duk_push_null(c.ctx)
+}
+
+// Push undefined value
+func (c *Context) PushUndefined() {
+	c.check()
+	C.duk_push_undefined(c.ctx)
+}
+
 // Push bool value
 func (c *Context) PushBool(b bool) {
 	c.check()
@@ -250,6 +262,32 @@ func (c *Context) Push(i interface{}) {
 	case bool:
 		b := i.(bool)
 		c.PushBool(b)
+		break
+	case []interface{}:
+		c.check()
+		idx := C.duk_push_array(c.ctx)
+		arr := i.([]interface{})
+		for key,val := range(arr) {
+			c.Push(val)
+			ret := C.duk_put_prop_index(c.ctx,idx,C.duk_uarridx_t(key));
+			if int(ret) != 1 {
+				panic("push failed")
+			}
+		}
+		break
+	case map[string]interface{}:
+		c.check()
+		idx := C.duk_push_array(c.ctx)
+		arr := i.(map[string]interface{})
+		for key,val := range(arr) {
+			c.Push(val)
+			k := C.CString(key)
+			ret := C.duk_put_prop_string(c.ctx,idx,k);
+			if int(ret) != 1 {
+				panic("push failed")
+			}
+			C.free(unsafe.Pointer(k))
+		}
 		break
 	default:
 		panic("push failed,invaid type")

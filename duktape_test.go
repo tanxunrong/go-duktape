@@ -53,6 +53,21 @@ func TestPushNumber(t *testing.T) {
 		t.Fatal("get float != push")
 	}
 
+	arr := []interface{}{"abc",123,u1,i1}
+	c.Push(arr)
+	c.PopN(1)
+
+	marr := make(map[string]interface{},5)
+	marr["go"] = "abc"
+	marr["do"] = 123
+	marr["first"] = u1
+	c.Push(marr)
+	c.PopN(1)
+
+	c.PushNull()
+	c.PushUndefined()
+	c.PopN(2)
+
 	c.Close()
 }
 
