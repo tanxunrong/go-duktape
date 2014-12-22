@@ -178,6 +178,17 @@ func (c *Context) GetStr(i int) (string, error) {
 	return C.GoStringN(s, l), nil
 }
 
+func (c *Context) GetArr(i int) (map[string]interface{},error) {
+	c.check()
+	b := C.duk_is_array(c.ctx, C.duk_idx_t(i))
+	if b == 0 {
+		return nil, TypeError
+	}
+	C.duk_enum(c.ctx,C.duk_idx_t(i),0)
+	for {
+		b = C.duk_next(c.ctx,
+}
+
 // return current number of values on stack
 func (c *Context) GetTop() int {
 	c.check()
@@ -332,4 +343,9 @@ func (c *Context) Dump() string {
 	s := C.duk_safe_to_lstring(c.ctx,-1,&l)
 	str := C.GoStringN(s,C.int(l))
 	return str
+}
+
+// run the gc
+func (c *Context) Gc() {
+	C.duk_gc(c.ctx,C.duk_uint_t(0))
 }

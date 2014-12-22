@@ -42,3 +42,14 @@ const (
 	 DUK_COMPILE_NOSOURCE  C.duk_uint_t = 32        /* (C.duk_uint_ternal) no source string on stack */
 	 DUK_COMPILE_STRLEN    C.duk_uint_t = 64        /* (C.duk_uint_ternal) take strlen() of src_buffer (avoids double evaluation in macro) */
 )
+
+/* Enumeration flags for duk_enum() */
+const (
+		 DUK_ENUM_INCLUDE_NONENUMERABLE     C.duk_uint_t = (1 << 0)    /* enumerate non-numerable properties in addition to enumerable */
+		 DUK_ENUM_INCLUDE_INTERNAL          C.duk_uint_t = (1 << 1)    /* enumerate internal properties  C.duk_uint_t = (regardless of enumerability) */
+		 DUK_ENUM_OWN_PROPERTIES_ONLY       C.duk_uint_t = (1 << 2)    /* don't walk prototype chain, only check own properties */
+		 DUK_ENUM_ARRAY_INDICES_ONLY        C.duk_uint_t = (1 << 3)    /* only enumerate array indices */
+		 DUK_ENUM_SORT_ARRAY_INDICES        C.duk_uint_t = (1 << 4)    /* sort array indices, use with DUK_ENUM_ARRAY_INDICES_ONLY */
+		 DUK_ENUM_NO_PROXY_BEHAVIOR         C.duk_uint_t = (1 << 5)    /* enumerate a proxy object itself without invoking proxy behavior */
+
+)

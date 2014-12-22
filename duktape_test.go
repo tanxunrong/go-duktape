@@ -52,21 +52,25 @@ func TestPushNumber(t *testing.T) {
 	} else if pr != float64(i1) {
 		t.Fatal("get float != push")
 	}
+	c.PopN(4)
 
 	arr := []interface{}{"abc",123,u1,i1}
 	c.Push(arr)
-	c.PopN(1)
 
 	marr := make(map[string]interface{},5)
 	marr["go"] = "abc"
 	marr["do"] = 123
 	marr["first"] = u1
 	c.Push(marr)
-	c.PopN(1)
 
 	c.PushNull()
 	c.PushUndefined()
 	c.PopN(2)
+
+	n := c.GetTop()
+	if n != 3 {
+		t.Fatalf("unexpected top num %d, dump %s",n,c.Dump())
+	}
 
 	c.Close()
 }
@@ -138,3 +142,10 @@ func TestEvalAndDump(t *testing.T) {
 	c.Close()
 
 }
+
+func TestGc(t *testing.T) {
+	c := NewCtx()
+	defer c.Close()
+	c.Gc()
+}
+
