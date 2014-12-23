@@ -15,7 +15,7 @@ func TestOpenAndClose(t *testing.T) {
 	}
 }
 
-func TestPushNumber(t *testing.T) {
+func TestPushAndPushArr(t *testing.T) {
 	c := NewCtx()
 
 	i := 2123
@@ -54,14 +54,20 @@ func TestPushNumber(t *testing.T) {
 	}
 	c.PopN(4)
 
-	arr := []interface{}{"abc",123,u1,i1}
-	c.Push(arr)
+	arr := []interface{}{"abc", 123, u1, i1}
+	c.PushArr(arr)
 
-	marr := make(map[string]interface{},5)
+	marr := make(map[string]interface{}, 5)
 	marr["go"] = "abc"
 	marr["do"] = 123
 	marr["first"] = u1
-	c.Push(marr)
+	c.PushArr(marr)
+
+	submarr := make(map[string]interface{}, 5)
+	submarr["marr"] = marr
+	submarr["arr"] = arr
+	submarr["simple"] = u1
+	c.PushArr(submarr)
 
 	c.PushNull()
 	c.PushUndefined()
@@ -69,7 +75,7 @@ func TestPushNumber(t *testing.T) {
 
 	n := c.GetTop()
 	if n != 3 {
-		t.Fatalf("unexpected top num %d, dump %s",n,c.Dump())
+		t.Fatalf("unexpected top num %d, dump %s", n, c.Dump())
 	}
 
 	c.Close()
@@ -148,4 +154,3 @@ func TestGc(t *testing.T) {
 	defer c.Close()
 	c.Gc()
 }
-

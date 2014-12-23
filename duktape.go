@@ -1,6 +1,6 @@
 package duktape
 
-/* 
+/*
 #cgo CFLAGS: -std=c99 -I./
 #cgo LDFLAGS: libduktape.a -lm
 #include "duktape.h"
@@ -12,9 +12,9 @@ import "C"
 
 import (
 	"errors"
-	"sync"
 	"fmt"
 	"io/ioutil"
+	"sync"
 	"unsafe"
 )
 
@@ -23,7 +23,7 @@ type Context struct {
 	ctx   unsafe.Pointer
 	mutex sync.Mutex
 	hell  chan DukError // fatal error chan
-	dead bool
+	dead  bool
 }
 
 type CtxCenter map[unsafe.Pointer]Context
@@ -55,9 +55,9 @@ func NewCtx() Context {
 	if ctx == nil {
 		panic("new ctx = nil")
 	}
-	c := Context{ctx: ctx, hell: make(chan DukError, 5),dead:false}
+	c := Context{ctx: ctx, hell: make(chan DukError, 5), dead: false}
 	allContext[ctx] = c
-	load,err := ioutil.ReadFile("./load.js")
+	load, err := ioutil.ReadFile("./load.js")
 	if err != nil {
 		panic(err)
 	}
@@ -76,21 +76,6 @@ func (c *Context) Close() {
 	c.ctx = nil
 	c.dead = true
 }
-
-type DukType int
-
-/* Value types, used by e.g. duk_get_type() */
-const (
-	DUK_TYPE_NONE      DukType = 0 /* no value, e.g. invalid index */
-	DUK_TYPE_UNDEFINED DukType = 1 /* Ecmascript undefined */
-	DUK_TYPE_NULL      DukType = 2 /* Ecmascript null */
-	DUK_TYPE_BOOLEAN   DukType = 3 /* Ecmascript boolean: 0 or 1 */
-	DUK_TYPE_NUMBER    DukType = 4 /* Ecmascript number: double */
-	DUK_TYPE_STRING    DukType = 5 /* Ecmascript string: CESU-8 / extended UTF-8 encoded */
-	DUK_TYPE_OBJECT    DukType = 6 /* Ecmascript object: includes objects, arrays, functions, threads */
-	DUK_TYPE_BUFFER    DukType = 7 /* fixed or dynamic, garbage collected byte buffer */
-	DUK_TYPE_POINTER   DukType = 8 /* raw void pointer */
-)
 
 var TypeError = errors.New("unexpected type")
 
@@ -174,10 +159,11 @@ func (c *Context) GetStr(i int) (string, error) {
 	var l C.int
 	s := C.duk_get_lstring(c.ctx, C.duk_idx_t(i), (*C.duk_size_t)(unsafe.Pointer(&l)))
 	//TODO unknown error cause panic without this line
-	_ = fmt.Sprintf("%v",s)
+	_ = fmt.Sprintf("%v", s)
 	return C.GoStringN(s, l), nil
 }
 
+/*
 func (c *Context) GetArr(i int) (map[string]interface{},error) {
 	c.check()
 	b := C.duk_is_array(c.ctx, C.duk_idx_t(i))
@@ -185,9 +171,8 @@ func (c *Context) GetArr(i int) (map[string]interface{},error) {
 		return nil, TypeError
 	}
 	C.duk_enum(c.ctx,C.duk_idx_t(i),0)
-	for {
-		b = C.duk_next(c.ctx,
 }
+*/
 
 // return current number of values on stack
 func (c *Context) GetTop() int {
@@ -201,7 +186,7 @@ func (c *Context) load(s string) {
 	str := C.CString(s)
 	l := len(s)
 	c.PushStr("<load>")
-	C.duk_eval_raw(c.ctx, str, (C.duk_size_t)(l),(DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_NORESULT | DUK_COMPILE_SAFE) )
+	C.duk_eval_raw(c.ctx, str, (C.duk_size_t)(l), (DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_NORESULT | DUK_COMPILE_SAFE))
 	C.free(unsafe.Pointer(str))
 }
 
@@ -211,7 +196,7 @@ func (c *Context) Eval(s string) {
 	str := C.CString(s)
 	l := len(s)
 	c.PushStr("<eval>")
-	C.duk_eval_raw(c.ctx, str, (C.duk_size_t)(l),(DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_SAFE) )
+	C.duk_eval_raw(c.ctx, str, (C.duk_size_t)(l), (DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_SAFE))
 	C.free(unsafe.Pointer(str))
 }
 
@@ -274,13 +259,64 @@ func (c *Context) Push(i interface{}) {
 		b := i.(bool)
 		c.PushBool(b)
 		break
+	default:
+		err := fmt.Sprintf("value type %T can't push", i)
+		panic(err)
+	}
+}
+
+// Push array to stack.
+func (c *Context) PushArr(i interface{}) int {
+	// check type
+	isArr := func(sub interface{}) bool {
+		switch sub.(type) {
+		case []interface{}:
+			return true
+		case map[uint32]interface{}:
+			return true
+		case map[string]interface{}:
+			return true
+		default:
+			break
+		}
+		return false
+	}
+
+	var ret C.duk_bool_t
+	var idx C.duk_idx_t
+
+	switch i.(type) {
 	case []interface{}:
 		c.check()
-		idx := C.duk_push_array(c.ctx)
+		idx = C.duk_push_array(c.ctx)
 		arr := i.([]interface{})
-		for key,val := range(arr) {
-			c.Push(val)
-			ret := C.duk_put_prop_index(c.ctx,idx,C.duk_uarridx_t(key));
+		for key, val := range arr {
+			if isArr(val) {
+				c.Push(key)
+				_ = c.PushArr(val)
+				ret = C.duk_put_prop(c.ctx, idx)
+			} else {
+				c.Push(val)
+				ret = C.duk_put_prop_index(c.ctx, idx, C.duk_uarridx_t(key))
+			}
+			if int(ret) != 1 {
+				panic("push failed")
+			}
+		}
+		break
+	case map[uint32]interface{}:
+		c.check()
+		idx = C.duk_push_array(c.ctx)
+		arr := i.(map[uint32]interface{})
+		for key, val := range arr {
+			if isArr(val) {
+				c.Push(key)
+				_ = c.PushArr(val)
+				ret = C.duk_put_prop(c.ctx, idx)
+			} else {
+				c.Push(val)
+				ret = C.duk_put_prop_index(c.ctx, idx, C.duk_uarridx_t(key))
+			}
 			if int(ret) != 1 {
 				panic("push failed")
 			}
@@ -288,22 +324,28 @@ func (c *Context) Push(i interface{}) {
 		break
 	case map[string]interface{}:
 		c.check()
-		idx := C.duk_push_array(c.ctx)
+		idx = C.duk_push_array(c.ctx)
 		arr := i.(map[string]interface{})
-		for key,val := range(arr) {
-			c.Push(val)
-			k := C.CString(key)
-			ret := C.duk_put_prop_string(c.ctx,idx,k);
+		for key, val := range arr {
+			if isArr(val) {
+				c.Push(key)
+				_ = c.PushArr(val)
+				ret = C.duk_put_prop(c.ctx, idx)
+			} else {
+				c.Push(val)
+				k := C.CString(key)
+				ret = C.duk_put_prop_string(c.ctx, idx, k)
+				C.free(unsafe.Pointer(k))
+			}
 			if int(ret) != 1 {
 				panic("push failed")
 			}
-			C.free(unsafe.Pointer(k))
 		}
 		break
 	default:
 		panic("push failed,invaid type")
-		break
 	}
+	return int(idx)
 }
 
 // pop values from stack, i >= 0.
@@ -314,7 +356,7 @@ func (c *Context) PopN(i int) {
 	if i < 0 {
 		panic("invalid i < 0")
 	}
-	C.duk_pop_n(c.ctx,C.duk_idx_t(i))
+	C.duk_pop_n(c.ctx, C.duk_idx_t(i))
 }
 
 // fatal call shall not return.Don't use it.
@@ -340,12 +382,12 @@ func (c *Context) check() {
 func (c *Context) Dump() string {
 	C.duk_push_context_dump(c.ctx)
 	var l C.duk_size_t
-	s := C.duk_safe_to_lstring(c.ctx,-1,&l)
-	str := C.GoStringN(s,C.int(l))
+	s := C.duk_safe_to_lstring(c.ctx, -1, &l)
+	str := C.GoStringN(s, C.int(l))
 	return str
 }
 
 // run the gc
 func (c *Context) Gc() {
-	C.duk_gc(c.ctx,C.duk_uint_t(0))
+	C.duk_gc(c.ctx, C.duk_uint_t(0))
 }

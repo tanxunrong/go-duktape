@@ -1,7 +1,6 @@
-
 package duktape
 
-/* 
+/*
 #cgo CFLAGS: -std=c99 -I./
 #include "duktape.h"
 
